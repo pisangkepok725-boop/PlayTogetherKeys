@@ -1,9 +1,6 @@
 package com.example.ptkeys
 
 import android.accessibilityservice.AccessibilityService
-import android.accessibilityservice.GestureDescription
-import android.graphics.Path
-import android.graphics.PointF
 import android.view.KeyEvent
 import android.view.accessibility.AccessibilityEvent
 import org.json.JSONObject
@@ -11,17 +8,16 @@ import org.json.JSONObject
 class KeyMapService : AccessibilityService() {
 
     private lateinit var profile: JSONObject
-    private var inGame: Boolean = false
+    private lateinit var joystick: Joystick
+    private var inGame = false
     private val pressed = HashSet<Int>()
-    private var stroke: GestureDescription.StrokeDescription? = null
-    private var last: PointF? = null
-    private var busy: Boolean = false
-    private var dirty: Boolean = false
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         val text = assets.open("profiles/play_together.json").bufferedReader().use { it.readText() }
         profile = JSONObject(text)
+        val j = profile.getJSONObject("joystick")
+        joystick = Joystick(this, num(j, "x") * sw(), num(j, "y") * sh(), num(j, "radius") * sw())
     }
 
     override fun onAccessibilityEvent(e: AccessibilityEvent) {
@@ -31,8 +27,7 @@ class KeyMapService : AccessibilityService() {
         inGame = (pkg == profile.getString("package"))
         if (!inGame) {
             pressed.clear()
-            stroke = null
-            last = null
+            joystick.reset()
         }
     }
 
@@ -43,6 +38,7 @@ class KeyMapService : AccessibilityService() {
     private fun sw(): Float = resources.displayMetrics.widthPixels.toFloat()
     private fun sh(): Float = resources.displayMetrics.heightPixels.toFloat()
     private fun num(o: JSONObject, k: String): Float = o.getDouble(k).toFloat()
+    private fun key(o: JSONObject, n: String): Int = code(o.getString(n))
 
     override fun onKeyEvent(ev: KeyEvent): Boolean {
         if (!inGame) return false
@@ -50,26 +46,25 @@ class KeyMapService : AccessibilityService() {
         val isDown = ev.action == KeyEvent.ACTION_DOWN && ev.repeatCount == 0
 
         val joy = profile.getJSONObject("joystick")
-        val joyNames = arrayOf("up", "left", "down", "right")
-        for (n in joyNames) {
-            if (code(joy.getString(n)) == k) {
-                if (ev.action == KeyEvent.ACTION_DOWN) {
-                    pressed.add(k)
-                } else if (ev.action == KeyEvent.ACTION_UP) {
-                    pressed.remove(k)
-                }
-                updateJoystick()
-                return true
-            }
+        val jk = intArrayOf(key(joy, "up"), key(joy, "down"), key(joy, "left"), key(joy, "right"))
+        if (jk.contains(k)) {
+            if (ev.action == KeyEvent.ACTION_DOWN) pressed.add(k)
+            if (ev.action == KeyEvent.ACTION_UP) pressed.remove(k)
+            var dx = 0f
+            var dy = 0f
+            if (pressed.contains(jk[0])) dy -= 1f
+            if (pressed.contains(jk[1])) dy += 1f
+            if (pressed.contains(jk[2])) dx -= 1f
+            if (pressed.contains(jk[3])) dx += 1f
+            joystick.set(dx, dy)
+            return true
         }
 
         val taps = profile.getJSONArray("taps")
         for (i in 0 until taps.length()) {
             val t = taps.getJSONObject(i)
-            if (code(t.getString("key")) == k) {
-                if (isDown) {
-                    tap(num(t, "x") * sw(), num(t, "y") * sh())
-                }
+            if (key(t, "key") == k) {
+                if (isDown) tapAt(this, num(t, "x") * sw(), num(t, "y") * sh())
                 return true
             }
         }
@@ -79,54 +74,16 @@ class KeyMapService : AccessibilityService() {
         val dxs = floatArrayOf(0f, 0f, -1f, 1f)
         val dys = floatArrayOf(-1f, 1f, 0f, 0f)
         for (i in 0 until 4) {
-            if (code(cam.getString(names[i])) == k) {
+            if (key(cam, names[i]) == k) {
                 if (isDown) {
                     val cx = num(cam, "x") * sw()
                     val cy = num(cam, "y") * sh()
-                    val dist = num(cam, "distance") * sw()
-                    swipe(cx, cy, cx + dxs[i] * dist, cy + dys[i] * dist)
+                    val d = num(cam, "distance") * sw()
+                    swipeAt(this, cx, cy, cx + dxs[i] * d, cy + dys[i] * d)
                 }
                 return true
             }
         }
         return false
     }
-
-    private fun tap(x: Float, y: Float) {
-        val p = Path()
-        p.moveTo(x, y)
-        val s = GestureDescription.StrokeDescription(p, 0L, 60L)
-        dispatchGesture(GestureDescription.Builder().addStroke(s).build(), null, null)
-    }
-
-    private fun swipe(x1: Float, y1: Float, x2: Float, y2: Float) {
-        val p = Path()
-        p.moveTo(x1, y1)
-        p.lineTo(x2, y2)
-        val s = GestureDescription.StrokeDescription(p, 0L, 200L)
-        dispatchGesture(GestureDescription.Builder().addStroke(s).build(), null, null)
-    }
-
-    private fun updateJoystick() {
-        if (busy) {
-            dirty = true
-            return
-        }
-        val joy = profile.getJSONObject("joystick")
-        val cx = num(joy, "x") * sw()
-        val cy = num(joy, "y") * sh()
-        val r = num(joy, "radius") * sw()
-
-        var dx = 0f
-        var dy = 0f
-        if (pressed.contains(code(joy.getString("up")))) dy -= 1f
-        if (pressed.contains(code(joy.getString("down")))) dy += 1f
-        if (pressed.contains(code(joy.getString("left")))) dx -= 1f
-        if (pressed.contains(code(joy.getString("right")))) dx += 1f
-        val len = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
-
-        val prev = last
-        val fromX = if (prev != null) prev.x else cx
-        val fromY = if (prev != null) prev.y else cy
-
-        val path
+}
