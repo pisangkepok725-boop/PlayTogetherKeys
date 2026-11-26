@@ -1,5 +1,5 @@
 {
-  "package": "com.haegin.playtogether",
+  "package": "com.vng.playtogether",
   "joystick": { "x": 0.14, "y": 0.72, "radius": 0.09,
                 "up": "W", "left": "A", "down": "S", "right": "D" },
   "taps": [
