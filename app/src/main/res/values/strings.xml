@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">PlayTogether Keys</string>
+    <string name="service_desc">Mengubah tombol keyboard menjadi ketukan dan geseran layar khusus untuk game Play Together.</string>
+</resources>
