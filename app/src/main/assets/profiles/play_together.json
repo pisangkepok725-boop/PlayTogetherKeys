@@ -1,0 +1,16 @@
+{
+  "package": "com.haegin.playtogether",
+  "joystick": { "x": 0.14, "y": 0.72, "radius": 0.09,
+                "up": "W", "left": "A", "down": "S", "right": "D" },
+  "taps": [
+    { "key": "E",     "x": 0.90, "y": 0.78, "note": "Tombol aksi utama" },
+    { "key": "SPACE", "x": 0.82, "y": 0.86, "note": "Tombol aksi kedua" },
+    { "key": "F",     "x": 0.95, "y": 0.60, "note": "Interaksi / NPC" },
+    { "key": "T",     "x": 0.40, "y": 0.06, "note": "Chat" },
+    { "key": "M",     "x": 0.06, "y": 0.12, "note": "Peta" },
+    { "key": "I",     "x": 0.94, "y": 0.10, "note": "Tas / menu" },
+    { "key": "ESCAPE","x": 0.97, "y": 0.05, "note": "Menu / tutup" }
+  ],
+  "camera": { "x": 0.60, "y": 0.45, "distance": 0.12,
+              "up": "DPAD_UP", "down": "DPAD_DOWN", "left": "DPAD_LEFT", "right": "DPAD_RIGHT" }
+}
